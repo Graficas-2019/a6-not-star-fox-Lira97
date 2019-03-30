@@ -10,15 +10,16 @@ stork = null,
 group = null,groupTree=null,
 orbitControls = null;
 var game = false;
+var crashBuilding= 0;
 var floor;
-var sphericalHelper;
+
 var worldRadius=26;
 var mouse = new THREE.Vector2(), INTERSECTED, CLICKED;
 var counter = 0;
 var actualTime = 0;
 var highScore = 0;
 var animator = null,
-duration1 = 1, 
+duration1 = 1,
 loopAnimation = false;
 var robot_mixer = {};
 var deadAnimator;
@@ -33,10 +34,8 @@ var max = 22;
 var min = -22;
 var maxDragonY = 8;
 var minDragonY = -4;
-var MAXRobots = 15;
+var MAXRobots = 1;
 var objLoader = null
-var backgroundScene = new THREE.Scene();
-var backgroundCamera = new THREE.Camera();
 var positionsX;
 var animation = "idle";
 var shots= [];
@@ -51,11 +50,9 @@ animateLight = true,
 animateWater = true,
 loopAnimation = false;
 
-
-function playAnimations()
-{
-    animator.start();
-}
+var particleGeometry;
+var particleCount=20;
+var explosionPower =1.06;
 
 function startGame()
 {
@@ -125,10 +122,10 @@ function loadTree()
             tree = object;
             tree.scale.set(.0050,.0050,.0050);
             tree.position.set(positionsX)
+            tree.bbox = new THREE.Box3()
+            tree.bbox.setFromObject(tree)
             group.add(object);
-            dancers.push(tree);
-            scene.add( tree );
-        },
+                },
 
         function ( xhr ) {
 
@@ -149,12 +146,12 @@ function loadEnemy()
     if(!objLoader)
         objLoader = new THREE.OBJLoader();
     
-    objLoader.load('models/Dragon/Dragon.obj',
+    objLoader.load('models/rock/rock1.obj',
 
         function(object)
         {
-            var texture = new THREE.TextureLoader().load('models/Dragon/Texture2.png');
-            var normalMap = new THREE.TextureLoader().load('models/Dragon/Texture.png');
+            var texture = new THREE.TextureLoader().load('models/rock/lunarrock_s.png');
+            // var normalMap = new THREE.TextureLoader().load('models/rock/lunarrock_s.png');
 
             object.traverse( function ( child ) 
             {
@@ -163,16 +160,20 @@ function loadEnemy()
                     child.castShadow = true;
                     child.receiveShadow = true;
                     child.material.map = texture;
-                    child.material.normalMap = normalMap;
+                    // child.material.normalMap = normalMap;
                 }
             } );
+          
+
             enemy = object;
-            enemy.scale.set(.07,.07,.07);
+            // enemy.scale.set(.007,.007,.007);
             enemy.position.set(positionsX)
+            enemy.rotation.set(Math.PI,0,0)
             enemy.bbox = new THREE.Box3()
+            enemy.bbox.setFromObject(enemy)
             group.add(object);
-            enemies.push(enemy);
-            scene.add( enemy );
+            // enemies.push(enemy);
+            
         },
         function ( xhr ) {
 
@@ -187,11 +188,11 @@ function loadEnemy()
         });
 }
 
+
 function loadObj()
 {
     if(!objLoader)
         objLoader = new THREE.OBJLoader();
-    
     objLoader.load('models/spaceship/spaceship.obj',
 
         function(object)
@@ -210,17 +211,20 @@ function loadObj()
                 }
             } );
                     
-            gun = object;
-            gun.position.z = 80;
-            gun.position.y = 2;
-            gun.position.x = 0;
-            gun.scale.set(.50,.50,.50);
-            gun.rotation.set(Math.PI/19,Math.PI,0);
+            spaceship = object;
+            spaceship.position.z = 80;
+            spaceship.position.y = 2;
+            spaceship.position.x = 0;
+            spaceship.scale.set(.50,.50,.50);
+            spaceship.rotation.set(Math.PI/19,Math.PI,0);
             group.add(object);
+            spaceship.bbox = new THREE.Box3(new THREE.Vector3(), new THREE.Vector3());
+
         },
         function ( xhr ) {
 
             console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+            
     
         },
         // called when loading has errors
@@ -231,40 +235,37 @@ function loadObj()
         });
 }
 
+function bullet(initialPos)
+{
+    var geometry = new THREE.CylinderGeometry( .3, .3, 2, 32 );
+    var material = new THREE.MeshBasicMaterial( {color: 0xffff00} );
+    var shot = new THREE.Mesh( geometry, material );
+
+    shot.rotation.set(Math.PI,0,0)
+    shot.position.copy(initialPos)
+    shot.bbox = new THREE.Box3()
+    shot.bbox.setFromObject(shot)
+    return shot  
+}
 function cloneTree (i)
 {
     var newDancer = tree.clone();
-    newDancer.position.set(Math.random() * (max - min) + min, -90, -100);
-    newDancer.name = i;
-    newDancer.living = 1;
-    newDancer.dead = 0;
+    newDancer.bbox = new THREE.Box3(new THREE.Vector3(), new THREE.Vector3());
+    newDancer.position.set(Math.random() * (max - min) + min,Math.random() * (maxDragonY - minDragonY) + minDragonY, -100);
     dancers.push(newDancer);
     scene.add(newDancer);
 }
-function bullet(initialPos)
-{
-    var shotMtl = new THREE.MeshBasicMaterial({
-        color: 0xff0000,
-        transparent: true,
-      })
-      var shot = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16),shotMtl)
-        shot.position.copy(initialPos)
-        shot.bbox = new THREE.Box3()
-        return shot  
-}
-
 function cloneEnemies (i)
 {
     var newEnemie = enemy.clone();
+    newEnemie.bbox = new THREE.Box3(new THREE.Vector3(), new THREE.Vector3());
     newEnemie.position.set(Math.random() * (max - min) + min,Math.random() * (maxDragonY - minDragonY) + minDragonY, -100);
-    newEnemie.name = i;
-    newEnemie.living = 1;
-    newEnemie.dead = 0;
     enemies.push(newEnemie);
     scene.add(newEnemie);
 }
 
 function animate() {
+    spaceship.bbox.setFromObject(spaceship)
 
     var now = Date.now();
     var deltat = now - currentTime;
@@ -272,8 +273,7 @@ function animate() {
     currentTime = now;
    
     var seconds = (now - actualTime)/1000
-
-
+    
     if (seconds >= 1.5 )
     {
         if ( counter < MAXRobots) 
@@ -285,42 +285,33 @@ function animate() {
                     }
     }
 
-    if ( dancers.length > 0) 
+    if (dancers.length > 0) 
     {
         for(dancer_i of dancers)
         {
-            if(dancer_i.living==1)
-            {
-                // dancer_i.lookAt(camera.position);
-                // dancer_i.translateZ(1.2);
+                dancer_i.bbox.setFromObject(dancer_i)
+                if(spaceship.bbox.intersectsBox(dancer_i.bbox))
+                {
+                    crashBuilding += 1
+                    if (crashBuilding >= 8)
+                    {
+                        crashBuilding = 0
+                        score --;
+                        document.getElementById("score").innerHTML = "score: " +score;
+                    }
+
+                }
+
                 dancer_i.position.z += 1.2 ;
                 dancer_i.position.y = -4 ;   
-                // dancer_i.mixer.update( ( deltat ) * 0.001 );        
 
-            } 
-            else if (dancer_i.living==0) 
-            {
-                var seconds2 = (now - dancer_i.dead)/1000
-                if (seconds2 >= 1 )
-                {
-                    score ++;
-                    document.getElementById("score").innerHTML = "score: " +score;
-                    dancer_i.position.set(Math.random() * (max - min) + min, -4, -100);
-                    dancer_i.rotation.set(0,0,0);  
-                    // dancer_i.mixer.update( ( deltat ) * 0.001 ); 
-                    dancer_i.living=1; 
-                }
-                
-            }
+        } 
             if(dancer_i.position.z >= camera.position.z-5)
             {  
-                    score --;
                     dancer_i.position.set(Math.random() * 100 - 10, -4, -100); 
-                    // dancer_i.mixer.update( ( deltat ) * 0.001 ); 
-                    document.getElementById("score").innerHTML = "score: " +score;
                 
             }
-        }
+    
     
     }
 
@@ -328,41 +319,34 @@ function animate() {
     {
         for(enemies_i of enemies)
         {
-            if(enemies_i.living==1)
-            {
-                // enemies_i.lookAt(camera.position);
-                // enemies_i.translateOnAxis (gun.position,.0096)
-                // enemies_i.translateZ(.6);
-                enemies_i.position.z += .7 ;
-                // enemies_i.position.y = 7;   
-                // dancer_i.mixer.update( ( deltat ) * 0.001 );        
-
-            } 
-            else if (enemies_i.living==0) 
-            {
-                var seconds2 = (now - enemies_i.dead)/1000
-                if (seconds2 >= 1 )
+                for(shot_i of shots)
                 {
-                    score ++;
-                    document.getElementById("score").innerHTML = "score: " +score;
-                    enemies_i.position.set(Math.random() * (max - min) + min, Math.random() * (maxDragonY - minDragonY) + minDragonY, -100);
-                    enemies_i.rotation.set(0,0,0);  
-                    // dancer_i.mixer.update( ( deltat ) * 0.001 ); 
-                    enemies_i.living=1; 
+                    shot_i.bbox.setFromObject(shot_i)
+                    enemies_i.bbox.setFromObject(enemies_i)
+                    if(shot_i.bbox.intersectsBox(enemies_i.bbox))
+                    {
+                        explode(enemies_i.position.x,enemies_i.position.y,enemies_i.position.z);
+                        scene.remove(shot_i)
+                        score ++;
+                        document.getElementById("score").innerHTML = "score: " +score;
+                        enemies_i.position.set(Math.random() * 100 - 10,  Math.random() * (maxDragonY - minDragonY) + minDragonY, -100);
+                        shots.splice(i, 1)
+ 
+                    }
                 }
-                
-            }
+
+                enemies_i.position.z += .7 ;
+            
             if(enemies_i.position.z >= camera.position.z-5)
             {  
-                    score --;
                     enemies_i.position.set(Math.random() * 100 - 10,  Math.random() * (maxDragonY - minDragonY) + minDragonY, -100); 
-                    // dancer_i.mixer.update( ( deltat ) * 0.001 ); 
-                    document.getElementById("score").innerHTML = "score: " +score;
                 
             }
         }
     
     }
+    doExplosionLogic();
+
     if(finish>1000)
     {
         gameStarted = now;
@@ -387,25 +371,19 @@ function animate() {
     for(var i=0; i<shots.length; i++) {
         
         if(shots[i].position.z == -160) {
-          shots.splice(i, 1)
-          scene.remove(shots[i])
+            scene.remove(shots[i])
+            shots.splice(i, 1)
         }
         else
         {
-            shots[i].position.z -= 10
+            shots[i].rotation.set(Math.PI/2,0,0)
+            shots[i].position.z -= 3
         }
       }
-    
-    // if(animation =="dead")
-    // {
-    //     KF.update();
-    // }
 }
 function run() 
 {
     requestAnimationFrame(function() { run(); });
-    renderer.clear();
-    renderer.render( backgroundScene, backgroundCamera );
     renderer.render( scene, camera );
         if(game)
         {
@@ -414,7 +392,6 @@ function run()
             animator.start();
 
         }
-        //  orbitControls.update();
 
 }
 
@@ -434,38 +411,22 @@ function createScene(canvas) {
     renderer.setSize(window.innerWidth, window.innerHeight);
 
     // // Turn on shadows
-    // renderer.shadowMap.enabled = true;
+    renderer.shadowMap.enabled = true;
     // // Options are THREE.BasicShadowMap, THREE.PCFShadowMap, PCFSoftShadowMap
-    // renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     
     // Create a new Three.js scene
     scene = new THREE.Scene();
 
     // Add  a camera so we can view the scene
     camera = new THREE.PerspectiveCamera( 45, canvas.width / canvas.height, 1, 4000 );
-    // camera.position.set(0, 150, 180);
 
-    // camera.position.set(0, 3.4, 110.8);
+    camera.position.set(0, 9, 117.9);
 
-    camera.position.set(0, 3.4, 117.9);
-
-    camera.rotation.set(0,0,0);
+    camera.rotation.set(-Math.PI/18,0,0);
     scene.add(camera);
-    //  orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
-    var texture = THREE.ImageUtils.loadTexture( 'images/back.jpg' );
-    var backgroundMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(2, 2, 0),
-    new THREE.MeshBasicMaterial({
-                 map: texture
-             }));
+    //orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
 
-    backgroundMesh .material.depthTest = false;
-    backgroundMesh .material.depthWrite = false;
-
-    //      // Create your background scene
-    backgroundScene .add(backgroundCamera );
-    backgroundScene .add(backgroundMesh );
-        
     // Create a group to hold all the objects
     root = new THREE.Object3D;
     
@@ -477,10 +438,12 @@ function createScene(canvas) {
 
     ambientLight = new THREE.AmbientLight ( 0x888888 );
     root.add(ambientLight);
-    
+
     loadObj();
     loadEnemy();
-    loadTree()
+    loadTree();
+    addExplosion();
+
     // Create a group to hold the objects
     group = new THREE.Object3D;
     root.add(group);
@@ -517,15 +480,14 @@ function createScene(canvas) {
 	var directions  = ["xpos", "xneg", "ypos", "yneg", "zpos", "zneg"];
 	var imageSuffix = ".png";
 	var skyGeometry = new THREE.CubeGeometry( 230, 100, 200 );	
-	
+	var loader = new THREE.TextureLoader();
 	var materialArray = [];
 	for (var i = 0; i < 6; i++)
 		materialArray.push( new THREE.MeshBasicMaterial({
-			map: THREE.ImageUtils.loadTexture( imagePrefix + directions[i] + imageSuffix ),
+			map: loader.load( imagePrefix + directions[i] + imageSuffix ),
 			side: THREE.BackSide
 		}));
-	var skyMaterial = new THREE.MeshFaceMaterial( materialArray );
-    var skyBox = new THREE.Mesh( skyGeometry, skyMaterial );
+    var skyBox = new THREE.Mesh( skyGeometry, materialArray );
     skyBox.position.set(0,20,0)
 	scene.add( skyBox );
 	
@@ -541,41 +503,7 @@ function onWindowResize()
     camera.updateProjectionMatrix();
     renderer.setSize( window.innerWidth, window.innerHeight );
 }
-// function onDocumentMouseDown(event)
-// {
-//     event.preventDefault();
 
-//     mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
-//     mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
-
-//     raycaster.setFromCamera( mouse, camera );
-
-//     var intersects = raycaster.intersectObjects( dancers, true );
-
-//     if ( intersects.length > 0 ) 
-//     {
-//         CLICKED = intersects[ 0 ].object;
-//         if(!animator.running)
-//         {
-//             for(var i = 0; i<= animator.interps.length -1; i++)
-//             {
-//                 animator.interps[i].target = dancers[CLICKED.parent.name].rotation;
-//                 dancers[CLICKED.parent.name].living = 0;
-//                 dancers[CLICKED.parent.name].dead = Date.now();
-            
-//             }
-            
-//             playAnimations();
-//         }
-//     } 
-//     else 
-//     {
-//         if ( CLICKED ) 
-//             CLICKED.material.emissive.setHex( CLICKED.currentHex );
-
-//         CLICKED = null;
-//     }
-// }
 function playAnimations()
 {    
   
@@ -597,53 +525,71 @@ function playAnimations()
         });
             
 }
-// function initAnimations() 
-// {
-//     animator = new KF.KeyFrameAnimator;
-//     animator.init({ 
-//         interps:
-//             [
-//                 { 
-//                     keys:[0, .30, .60, 1], 
-//                     values:[
-//                             { x: 0, y : 0, z : 0 },
-//                             { x:-Math.PI/6, y : Math.PI/7, z : 0 },
-//                             { x:-Math.PI/6 * 2, y : Math.PI/7 *2, z : 0},
-//                             { x:-Math.PI/6 * 3, y : Math.PI/7 *3, z : 0 },
-//                             ],
-//                 },
-//             ],
-//         loop: loopAnimation,
-//         duration1:duration,
-//     });    
-
-// }
-
 function handleKeyDown(keyEvent){
     if ( keyEvent.keyCode === 37) {
-        if(gun.position.x > -22)
-        gun.position.x -= 1.5
+        if(spaceship.position.x > -22)
+        spaceship.position.x -= 1.5
 
     } else if ( keyEvent.keyCode === 39) {
-        if(gun.position.x < 22)
-        gun.position.x += 1.5
+        if(spaceship.position.x < 22)
+        spaceship.position.x += 1.5
 
 	}else if ( keyEvent.keyCode === 38){
-        if(gun.position.y <= 11)
-        gun.position.y += 0.5
+        if(spaceship.position.y <= 11)
+        spaceship.position.y += 0.5
     }
     else if ( keyEvent.keyCode === 40){
-        if(gun.position.y > -4)
-        gun.position.y -= 0.5
+        if(spaceship.position.y > -4)
+        spaceship.position.y -= 0.5
     }
     else if(keyEvent.keyCode == 32)
     {
-    var shipPosition = gun.position.clone()
-    // shipPosition.sub(new THREE.Vector3(0, 25, 100))
+    var shipPosition = spaceship.position.clone()
     var shot = bullet(shipPosition)
     shots.push(shot)
     scene.add(shot)
-    console.log(shots)
     }
 	
+}
+function doExplosionLogic()
+{
+	if(!particles.visible)return;
+	for (var i = 0; i < particleCount; i ++ ) {
+		particleGeometry.vertices[i].multiplyScalar(explosionPower);
+	}
+	if(explosionPower>1.005){
+		explosionPower-=0.001;
+	}else{
+		particles.visible=false;
+	}
+	particleGeometry.verticesNeedUpdate = true;
+}
+function explode(x,y,z)
+{
+	particles.position.y=y;
+	particles.position.z=z;
+	particles.position.x=x;
+	for (var i = 0; i < particleCount; i ++ ) {
+		var vertex = new THREE.Vector3();
+		vertex.x = -0.2+Math.random() * 0.4;
+		vertex.y = -0.2+Math.random() * 0.4 ;
+		vertex.z = -0.2+Math.random() * 0.4;
+		particleGeometry.vertices[i]=vertex;
+	}
+	explosionPower=1.07;
+	particles.visible=true;
+}
+function addExplosion(){
+	particleGeometry = new THREE.Geometry();
+	for (var i = 0; i < particleCount; i ++ ) {
+		var vertex = new THREE.Vector3();
+		particleGeometry.vertices.push( vertex );
+	}
+	var pMaterial = new THREE.PointsMaterial({
+	  color: 0xC7C2BA,
+	  size: .5
+	});
+	particles = new THREE.Points( particleGeometry, pMaterial );
+	scene.add( particles );
+	particles.visible=false;
 }
