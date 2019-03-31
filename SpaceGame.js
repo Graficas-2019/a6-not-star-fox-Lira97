@@ -33,8 +33,8 @@ var currentTime = Date.now();
 var max = 22;
 var min = -22;
 var maxDragonY = 8;
-var minDragonY = -4;
-var MAXRobots = 1;
+var minDragonY = -2;
+var MAXRobots = 4;
 var objLoader = null
 var positionsX;
 var animation = "idle";
@@ -251,7 +251,7 @@ function cloneTree (i)
 {
     var newDancer = tree.clone();
     newDancer.bbox = new THREE.Box3(new THREE.Vector3(), new THREE.Vector3());
-    newDancer.position.set(Math.random() * (max - min) + min,Math.random() * (maxDragonY - minDragonY) + minDragonY, -100);
+    newDancer.position.set(Math.random() * (max - min) + min,Math.random() * (maxDragonY - minDragonY) + minDragonY, -110);
     dancers.push(newDancer);
     scene.add(newDancer);
 }
@@ -263,6 +263,7 @@ function cloneEnemies (i)
     enemies.push(newEnemie);
     scene.add(newEnemie);
 }
+
 
 function animate() {
     spaceship.bbox.setFromObject(spaceship)
@@ -289,6 +290,7 @@ function animate() {
     {
         for(dancer_i of dancers)
         {
+            console.log(dancer_i.position.x)
                 dancer_i.bbox.setFromObject(dancer_i)
                 if(spaceship.bbox.intersectsBox(dancer_i.bbox))
                 {
@@ -296,8 +298,6 @@ function animate() {
                     if (crashBuilding >= 8)
                     {
                         crashBuilding = 0
-                        score --;
-                        document.getElementById("score").innerHTML = "score: " +score;
                         document.getElementById("health").value -= 30;
                     }
 
@@ -309,7 +309,7 @@ function animate() {
         } 
             if(dancer_i.position.z >= camera.position.z-5)
             {  
-                    dancer_i.position.set(Math.random() * 100 - 10, -4, -100); 
+                    dancer_i.position.set(Math.random() * (max - min) + min,Math.random() * (maxDragonY - minDragonY) + minDragonY, -105);
                 
             }
     
@@ -330,7 +330,7 @@ function animate() {
                         scene.remove(shot_i)
                         score ++;
                         document.getElementById("score").innerHTML = "score: " +score;
-                        enemies_i.position.set(Math.random() * 100 - 10,  Math.random() * (maxDragonY - minDragonY) + minDragonY, -100);
+                        enemies_i.position.set(Math.random() * (max - min) + min,Math.random() * (maxDragonY - minDragonY) + minDragonY, -100);
                         shots.splice(i, 1)
  
                     }
@@ -340,7 +340,7 @@ function animate() {
             
             if(enemies_i.position.z >= camera.position.z-5)
             {  
-                    enemies_i.position.set(Math.random() * 100 - 10,  Math.random() * (maxDragonY - minDragonY) + minDragonY, -100); 
+                    enemies_i.position.set(Math.random() * (max - min) + min,Math.random() * (maxDragonY - minDragonY) + minDragonY, -100);
                 
             }
         }
@@ -364,15 +364,33 @@ function animate() {
                 scene.remove(dancer_i); 
                 
             }
-            dancers.splice(1, dancers.length-1)
+            dancers.splice(1, dancers.length)
+
+            for(enemies_i of enemies)
+            {
+                scene.remove(enemies); 
+                
+            }
+            enemies.splice(0, enemies.length)
+
+            for(shots_i of shots)
+            {
+                scene.remove(shots_i); 
+                
+            }
+            shots.splice(1, shots.length)
+
+            spaceship.position.z = 80;
+            spaceship.position.y = 2;
+            spaceship.position.x = 0;
             counter = 0;
             
         }
     }
-    
     for(var i=0; i<shots.length; i++) {
         
-        if(shots[i].position.z == -160) {
+        if(shots[i].position.z == -160) 
+        {
             scene.remove(shots[i])
             shots.splice(i, 1)
         }
@@ -431,12 +449,20 @@ function createScene(canvas) {
 
     // Create a group to hold all the objects
     root = new THREE.Object3D;
-    
-    directionalLight = new THREE.DirectionalLight( 0xffffff, 1);
 
-    // Create and add all the lights
-    directionalLight.position.set(0, 1, 2);
-    root.add(directionalLight);
+    spotLight = new THREE.SpotLight (0xffffff);
+    spotLight.position.set(-20, 100, 0);
+    spotLight.target.position.set(-2, 0, -2);
+    root.add(spotLight);
+
+    spotLight.castShadow = true;
+
+    spotLight.shadow.camera.near = 1;
+    spotLight.shadow.camera.far = 200;
+    spotLight.shadow.camera.fov = 45;
+    
+    spotLight.shadow.mapSize.width = SHADOW_MAP_WIDTH;
+    spotLight.shadow.mapSize.height = SHADOW_MAP_HEIGHT;
 
     ambientLight = new THREE.AmbientLight ( 0x888888 );
     root.add(ambientLight);

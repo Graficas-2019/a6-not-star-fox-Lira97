@@ -3,13 +3,23 @@
 body{
 	color:white;
 }
+#box {
+	position:absolute;
+	left:13px;
+	top:18px;
+	width:800px;
+	height:35px;
+	background:black;
+	border-radius: 9px; 
+
+}
 #title {
 	position:absolute;
 	left:20px;
 	top:20px;
 	font-family: "Comic Sans MS", cursive, sans-serif;
-}
 
+}
 #time {
 	position:absolute;
 	left:150px;
