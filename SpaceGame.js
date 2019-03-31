@@ -298,6 +298,7 @@ function animate() {
                         crashBuilding = 0
                         score --;
                         document.getElementById("score").innerHTML = "score: " +score;
+                        document.getElementById("health").value -= 30;
                     }
 
                 }
@@ -347,7 +348,7 @@ function animate() {
     }
     doExplosionLogic();
 
-    if(finish>1000)
+    if(finish>1000||document.getElementById("health").value == 0)
     {
         gameStarted = now;
         gameMinutes+=1;
@@ -356,6 +357,7 @@ function animate() {
         {
             document.getElementById("startButton").style.display="block";
             document.getElementById("startButton").disabled = false;
+            document.getElementById("health").value = 100
             game=false;
             for(dancer_i of dancers)
             {
