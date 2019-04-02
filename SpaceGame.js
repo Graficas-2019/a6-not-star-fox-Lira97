@@ -34,7 +34,7 @@ var max = 22;
 var min = -22;
 var maxDragonY = 8;
 var minDragonY = -2;
-var MAXRobots = 4;
+var MAXRobots = 10;
 var objLoader = null
 var positionsX;
 var animation = "idle";
@@ -259,7 +259,7 @@ function cloneEnemies (i)
 {
     var newEnemie = enemy.clone();
     newEnemie.bbox = new THREE.Box3(new THREE.Vector3(), new THREE.Vector3());
-    newEnemie.position.set(Math.random() * (max - min) + min,Math.random() * (maxDragonY - minDragonY) + minDragonY, -100);
+    newEnemie.position.set(Math.random() * (max - min) + min,Math.random() * (maxDragonY - minDragonY) + minDragonY, -110);
     enemies.push(newEnemie);
     scene.add(newEnemie);
 }
@@ -269,7 +269,6 @@ function animate() {
     spaceship.bbox.setFromObject(spaceship)
 
     var now = Date.now();
-    var deltat = now - currentTime;
     var finish = now - gameStarted;
     currentTime = now;
    
@@ -283,14 +282,13 @@ function animate() {
                 cloneTree(counter);
                 cloneEnemies(counter);
                 actualTime = now; 
-                    }
+        }
     }
 
     if (dancers.length > 0) 
     {
         for(dancer_i of dancers)
         {
-            console.log(dancer_i.position.x)
                 dancer_i.bbox.setFromObject(dancer_i)
                 if(spaceship.bbox.intersectsBox(dancer_i.bbox))
                 {
@@ -298,6 +296,7 @@ function animate() {
                     if (crashBuilding >= 8)
                     {
                         crashBuilding = 0
+                        explode(spaceship.position.x,spaceship.position.y,spaceship.position.z);
                         document.getElementById("health").value -= 30;
                     }
 
@@ -323,24 +322,22 @@ function animate() {
                 for(shot_i of shots)
                 {
                     shot_i.bbox.setFromObject(shot_i)
-                    enemies_i.bbox.setFromObject(enemies_i)
-                    if(shot_i.bbox.intersectsBox(enemies_i.bbox))
+                    if(shot_i.bbox.intersectsBox(enemies_i.bbox.setFromObject(enemies_i)))
                     {
                         explode(enemies_i.position.x,enemies_i.position.y,enemies_i.position.z);
-                        scene.remove(shot_i)
+                        // scene.remove(shot_i)
+                        // shots.splice(i, 1)
                         score ++;
                         document.getElementById("score").innerHTML = "score: " +score;
-                        enemies_i.position.set(Math.random() * (max - min) + min,Math.random() * (maxDragonY - minDragonY) + minDragonY, -100);
-                        shots.splice(i, 1)
- 
+                        enemies_i.position.set(Math.random() * (max - min) + min,Math.random() * (maxDragonY - minDragonY) + minDragonY, -105);
                     }
                 }
 
-                enemies_i.position.z += .7 ;
+                enemies_i.position.z += 1 ;
             
             if(enemies_i.position.z >= camera.position.z-5)
             {  
-                    enemies_i.position.set(Math.random() * (max - min) + min,Math.random() * (maxDragonY - minDragonY) + minDragonY, -100);
+                    enemies_i.position.set(Math.random() * (max - min) + min,Math.random() * (maxDragonY - minDragonY) + minDragonY, -105);
                 
             }
         }
@@ -368,10 +365,10 @@ function animate() {
 
             for(enemies_i of enemies)
             {
-                scene.remove(enemies); 
+                scene.remove(enemies_i); 
                 
             }
-            enemies.splice(0, enemies.length)
+            enemies.splice(1, enemies.length)
 
             for(shots_i of shots)
             {
@@ -379,7 +376,8 @@ function animate() {
                 
             }
             shots.splice(1, shots.length)
-
+            
+            scene.remove(particles)
             spaceship.position.z = 80;
             spaceship.position.y = 2;
             spaceship.position.x = 0;
@@ -387,9 +385,10 @@ function animate() {
             
         }
     }
+    console.log(shots.length)
     for(var i=0; i<shots.length; i++) {
-        
-        if(shots[i].position.z == -160) 
+
+        if(shots[i].position.z <= -130) 
         {
             scene.remove(shots[i])
             shots.splice(i, 1)
